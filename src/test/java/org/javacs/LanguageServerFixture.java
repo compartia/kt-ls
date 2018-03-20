@@ -17,12 +17,12 @@ class LanguageServerFixture {
         Main.setRootFormat();
     }
 
-    static JavaLanguageServer getJavaLanguageServer() {
+    static KtLanguageServer getJavaLanguageServer() {
         return getJavaLanguageServer(
                 DEFAULT_WORKSPACE_ROOT, diagnostic -> LOG.info(diagnostic.getMessage()));
     }
 
-    static JavaLanguageServer getJavaLanguageServer(
+    static KtLanguageServer getJavaLanguageServer(
             Path workspaceRoot, Consumer<Diagnostic> onError) {
         return getJavaLanguageServer(
                 workspaceRoot,
@@ -50,9 +50,9 @@ class LanguageServerFixture {
                 });
     }
 
-    private static JavaLanguageServer getJavaLanguageServer(
+    private static KtLanguageServer getJavaLanguageServer(
             Path workspaceRoot, LanguageClient client) {
-        JavaLanguageServer server = new JavaLanguageServer();
+        KtLanguageServer server = new KtLanguageServer();
         InitializeParams init = new InitializeParams();
 
         init.setRootPath(workspaceRoot.toString());
