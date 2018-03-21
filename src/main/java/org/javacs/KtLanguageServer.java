@@ -3,8 +3,9 @@ package org.javacs;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,7 +49,7 @@ class KtLanguageServer implements LanguageServer {
     private final CompletableFuture<LanguageClient> client = new CompletableFuture<>();
     private final KtTextDocumentService textDocuments = new KtTextDocumentService(client, this);
     private final KtWorkspaceService workspace = new KtWorkspaceService(client, this, textDocuments);
-    private Path workspaceRoot = Paths.get(".");
+    private File workspaceRoot;
 
     void clearFileDiagnostics(Path file) {
         client.thenAccept(
@@ -100,40 +101,44 @@ class KtLanguageServer implements LanguageServer {
             readXmls(cAnalysis.getApps());
         }
 
-        //        for (final XmlParsingIssue pi : xmlParsingIssues) {
-        //            saveParsingIssueToSq(pi);
-        //        }
     }
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
-        workspaceRoot = Paths.get(params.getRootUri()).toAbsolutePath().normalize();
-
-        final InitializeResult result = new InitializeResult();
-        final ServerCapabilities c = new ServerCapabilities();
-
-        c.setTextDocumentSync(TextDocumentSyncKind.Incremental);
-
-        //        c.setDefinitionProvider(true);
-        //        c.setCompletionProvider(new CompletionOptions(true, ImmutableList.of(".")));
-        //        c.setHoverProvider(true);
-        //        c.setWorkspaceSymbolProvider(true);
-        //        c.setReferencesProvider(true);
-        //        c.setDocumentSymbolProvider(true);
-        //        c.setCodeActionProvider(true);
-        //        c.setExecuteCommandProvider(
-        //            new ExecuteCommandOptions(ImmutableList.of("Java.importClass")));
-        //        c.setSignatureHelpProvider(new SignatureHelpOptions(ImmutableList.of("(", ",")));
-
-        result.setCapabilities(c);
 
         try {
-            this.runXmlScanner(workspaceRoot.toFile());
+
+            workspaceRoot = UNCPathTool.uri2file(params.getRootUri());//.t  Paths.get(params.getRootUri()).toAbsolutePath().normalize();
+
+            final InitializeResult result = new InitializeResult();
+            final ServerCapabilities c = new ServerCapabilities();
+
+            c.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+
+            //        c.setDefinitionProvider(true);
+            //        c.setCompletionProvider(new CompletionOptions(true, ImmutableList.of(".")));
+            //        c.setHoverProvider(true);
+            //        c.setWorkspaceSymbolProvider(true);
+            //        c.setReferencesProvider(true);
+            //        c.setDocumentSymbolProvider(true);
+            //        c.setCodeActionProvider(true);
+            //        c.setExecuteCommandProvider(
+            //            new ExecuteCommandOptions(ImmutableList.of("Java.importClass")));
+            //        c.setSignatureHelpProvider(new SignatureHelpOptions(ImmutableList.of("(", ",")));
+
+            result.setCapabilities(c);
+
+            this.runXmlScanner(workspaceRoot);
+
+            return CompletableFuture.completedFuture(result);
         } catch (final JAXBException e) {
+            throw new RuntimeException(e);
+        } catch (final MalformedURLException e) {
+            throw new RuntimeException(e);
+        } catch (final URISyntaxException e) {
             throw new RuntimeException(e);
         }
 
-        return CompletableFuture.completedFuture(result);
     }
 
     @Override
@@ -220,26 +225,5 @@ class KtLanguageServer implements LanguageServer {
             return Level.FINE;
         }
     }
-    //
-    //    /**
-    //     * Compile a .java source and emit a .class file.
-    //     *
-    //     * <p>
-    //     * Useful for testing that the language server works when driven by .class
-    //     * files.
-    //     */
-    //    void compile(URI file) {
-    //        Objects.requireNonNull(file, "file is null");
-    //
-    //        configured().compiler
-    //                .compileBatch(Collections.singletonMap(file, textDocuments.activeContent(file)));
-    //    }
 
-    //    private static String jsonStringify(Object value) {
-    //        try {
-    //            return Main.JSON.writeValueAsString(value);
-    //        } catch (final JsonProcessingException e) {
-    //            throw new RuntimeException(e);
-    //        }
-    //    }
 }

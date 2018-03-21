@@ -1,6 +1,7 @@
 /out
 /node_modules
 /target
+/vsc-extension-old
 
 /dependency-reduced-pom.xml
 /classpath.txt
@@ -13,3 +14,6 @@
 *.iml
 *.vsix
 .DS_store
+ 
+kt-advance/node_modules
+

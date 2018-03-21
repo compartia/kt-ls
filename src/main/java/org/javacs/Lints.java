@@ -39,6 +39,7 @@ class Lints {
         case MANDATORY_WARNING:
             return DiagnosticSeverity.Warning;
         case NOTE:
+            return DiagnosticSeverity.Hint;
         case OTHER:
         default:
             return DiagnosticSeverity.Information;
@@ -47,12 +48,16 @@ class Lints {
 
     private static Range position(javax.tools.Diagnostic<? extends File> error) {
 
+        int lineNumber = (int) error.getLineNumber();
+        if (lineNumber > 0) {
+            lineNumber = lineNumber - 1;
+        }
         return new Range(
                 new Position(
-                        (int) error.getLineNumber(),
+                        lineNumber,
                         (int) error.getStartPosition()),
                 new Position(
-                        (int) error.getLineNumber(),
+                        lineNumber,
                         (int) error.getEndPosition()));
     }
 

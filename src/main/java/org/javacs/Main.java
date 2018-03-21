@@ -3,15 +3,26 @@ package org.javacs;
 //import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
+import java.nio.channels.AsynchronousServerSocketChannel;
+import java.nio.channels.AsynchronousSocketChannel;
+import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Function;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.lsp4j.jsonrpc.Launcher;
+import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
 import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
 
@@ -76,6 +87,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
+        //XXX: use arguments to select master or slave mode
         try {
 
             final Class<?> main = Class.forName("org.javacs.Main");
@@ -86,7 +98,7 @@ public class Main {
         }
     }
 
-    public static void run() {
+    public static void runSlave() {
 
         setRootFormat();
 
@@ -115,6 +127,28 @@ public class Main {
         return socket;
     }
 
+    public static void run() throws InterruptedException, IOException {
+        final String port = System.getProperty("javacs.port");
+        Objects.requireNonNull(port, "-Djavacs.port=? is required");
+        LOG.info("Binding to " + port);
+
+        final KtLanguageServer languageServer = new KtLanguageServer();
+
+        final Function<MessageConsumer, MessageConsumer> wrapper = consumer -> {
+            final MessageConsumer result = consumer;
+            return result;
+        };
+
+        final Launcher<LanguageClient> launcher = createSocketLauncher(languageServer, LanguageClient.class,
+            new InetSocketAddress("localhost", Integer.parseInt(port)), Executors.newCachedThreadPool(), wrapper);
+
+        languageServer.installClient(launcher.getRemoteProxy());
+        final Future<?> future = launcher.startListening();
+        while (!future.isDone()) {
+            Thread.sleep(10_000l);
+        }
+    }
+
     /**
      * Listen for requests from the parent node process. Send replies
      * asynchronously. When the request stream is closed, wait for 5s for all
@@ -129,4 +163,20 @@ public class Main {
         launcher.startListening();
         LOG.info(String.format("java.version is %s", System.getProperty("java.version")));
     }
+
+    static <T> Launcher<T> createSocketLauncher(Object localService, Class<T> remoteInterface,
+            SocketAddress socketAddress, ExecutorService executorService,
+            Function<MessageConsumer, MessageConsumer> wrapper) throws IOException {
+        final AsynchronousServerSocketChannel serverSocket = AsynchronousServerSocketChannel.open().bind(socketAddress);
+        AsynchronousSocketChannel socketChannel;
+        try {
+            socketChannel = serverSocket.accept().get();
+            return Launcher.createIoLauncher(localService, remoteInterface, Channels.newInputStream(socketChannel),
+                Channels.newOutputStream(socketChannel), executorService, wrapper);
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 }
