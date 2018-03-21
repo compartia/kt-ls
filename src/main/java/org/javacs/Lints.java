@@ -1,12 +1,10 @@
 package org.javacs;
 
-import com.sun.tools.javac.api.ClientCodeWrapper;
-import com.sun.tools.javac.util.DiagnosticSource;
-import com.sun.tools.javac.util.JCDiagnostic;
+import java.io.File;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.logging.Logger;
-import javax.tools.JavaFileObject;
+
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.Position;
@@ -14,11 +12,11 @@ import org.eclipse.lsp4j.Range;
 
 class Lints {
 
-    static Optional<Diagnostic> convert(javax.tools.Diagnostic<? extends JavaFileObject> error) {
+    static Optional<Diagnostic> convert(javax.tools.Diagnostic<? extends File> error) {
         if (error.getStartPosition() != javax.tools.Diagnostic.NOPOS) {
-            Range range = position(error);
-            Diagnostic diagnostic = new Diagnostic();
-            DiagnosticSeverity severity = severity(error.getKind());
+            final Range range = position(error);
+            final Diagnostic diagnostic = new Diagnostic();
+            final DiagnosticSeverity severity = severity(error.getKind());
 
             diagnostic.setSeverity(severity);
             diagnostic.setRange(range);
@@ -35,35 +33,32 @@ class Lints {
 
     private static DiagnosticSeverity severity(javax.tools.Diagnostic.Kind kind) {
         switch (kind) {
-            case ERROR:
-                return DiagnosticSeverity.Error;
-            case WARNING:
-            case MANDATORY_WARNING:
-                return DiagnosticSeverity.Warning;
-            case NOTE:
-            case OTHER:
-            default:
-                return DiagnosticSeverity.Information;
+        case ERROR:
+            return DiagnosticSeverity.Error;
+        case WARNING:
+        case MANDATORY_WARNING:
+            return DiagnosticSeverity.Warning;
+        case NOTE:
+            return DiagnosticSeverity.Hint;
+        case OTHER:
+        default:
+            return DiagnosticSeverity.Information;
         }
     }
 
-    private static Range position(javax.tools.Diagnostic<? extends JavaFileObject> error) {
-        if (error instanceof ClientCodeWrapper.DiagnosticSourceUnwrapper)
-            error = ((ClientCodeWrapper.DiagnosticSourceUnwrapper) error).d;
+    private static Range position(javax.tools.Diagnostic<? extends File> error) {
 
-        JCDiagnostic diagnostic = (JCDiagnostic) error;
-        DiagnosticSource source = diagnostic.getDiagnosticSource();
-        long start = error.getStartPosition(), end = error.getEndPosition();
-
-        if (end == start) end = start + 1;
-
+        int lineNumber = (int) error.getLineNumber();
+        if (lineNumber > 0) {
+            lineNumber = lineNumber - 1;
+        }
         return new Range(
                 new Position(
-                        source.getLineNumber((int) start) - 1,
-                        source.getColumnNumber((int) start, true) - 1),
+                        lineNumber,
+                        (int) error.getStartPosition()),
                 new Position(
-                        source.getLineNumber((int) end) - 1,
-                        source.getColumnNumber((int) end, true) - 1));
+                        lineNumber,
+                        (int) error.getEndPosition()));
     }
 
     private static final Logger LOG = Logger.getLogger("main");
