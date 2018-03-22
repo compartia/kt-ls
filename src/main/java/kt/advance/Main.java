@@ -1,4 +1,4 @@
-package org.javacs;
+package kt.advance;
 
 //import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
@@ -90,7 +90,7 @@ public class Main {
         //XXX: use arguments to select master or slave mode
         try {
 
-            final Class<?> main = Class.forName("org.javacs.Main");
+            final Class<?> main = Class.forName("kt.advance.Main");
             final Method run = main.getMethod("run");
             run.invoke(null);
         } catch (final Exception e) {

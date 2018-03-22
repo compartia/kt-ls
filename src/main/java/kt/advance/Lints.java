@@ -1,4 +1,4 @@
-package org.javacs;
+package kt.advance;
 
 import java.io.File;
 import java.util.Locale;
@@ -13,6 +13,7 @@ import org.eclipse.lsp4j.Range;
 class Lints {
 
     static Optional<Diagnostic> convert(javax.tools.Diagnostic<? extends File> error) {
+
         if (error.getStartPosition() != javax.tools.Diagnostic.NOPOS) {
             final Range range = position(error);
             final Diagnostic diagnostic = new Diagnostic();
@@ -22,11 +23,11 @@ class Lints {
             diagnostic.setRange(range);
             diagnostic.setCode(error.getCode());
             diagnostic.setMessage(error.getMessage(null));
+            diagnostic.setSource("KT Advance");
 
             return Optional.of(diagnostic);
         } else {
             LOG.warning("Skipped " + error.getMessage(Locale.getDefault()));
-
             return Optional.empty();
         }
     }

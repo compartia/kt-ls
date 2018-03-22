@@ -1,4 +1,4 @@
-package org.javacs;
+package kt.advance;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,6 +13,9 @@ import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.ShowMessageRequestParams;
 import org.eclipse.lsp4j.services.LanguageClient;
+
+import kt.advance.KtLanguageServer;
+import kt.advance.Main;
 
 class LanguageServerFixture {
 

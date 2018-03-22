@@ -1,4 +1,4 @@
-package org.javacs;
+package kt.advance;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -35,13 +35,14 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
-import org.javacs.KtTextDocumentService.FileDiagnostic;
 
 import com.kt.advance.api.CAnalysisImpl;
 import com.kt.advance.api.CApplication;
 import com.kt.advance.api.CFile;
 import com.kt.advance.api.FsAbstraction;
 import com.kt.advance.xml.model.FsAbstractionImpl;
+
+import kt.advance.KtTextDocumentService.FileDiagnostic;
 
 class KtLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");

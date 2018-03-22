@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/"
+	debug="false">
+
+	<appender name="consoleAppender" class="org.apache.log4j.ConsoleAppender">
+		
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%-5p %t [%-40.40c] %x - %m%n" />
+		</layout>
+	</appender>
+
+	<!-- general application log -->
+	<appender name="Kt2JsonLogFile" class="org.apache.log4j.FileAppender">
+		<param name="File" value="kt-ch_analysis.log" />
+		<param name="Threshold" value="DEBUG" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%d %-5p  [%c{1}] %m %n" />
+		</layout>
+	</appender>
+	
+
+	<logger name="kt.advance">
+		<level value="INFO" />
+		<appender-ref ref="consoleAppender" />
+	</logger>
+
+	<logger name="com.kt.advance">
+		<level value="INFO" />
+		<appender-ref ref="consoleAppender" />
+	</logger>
+	
+	<logger name="kt">
+		<level value="WARN" />
+		<appender-ref ref="Kt2JsonLogFile" />
+	</logger>
+
+	<root>
+		<priority value="info" />
+	</root>
+
+</log4j:configuration>
