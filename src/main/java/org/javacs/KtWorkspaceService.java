@@ -55,6 +55,7 @@ class KtWorkspaceService implements WorkspaceService {
 
     @Override
     public void didChangeConfiguration(DidChangeConfigurationParams change) {
+        LOG.info("didChangeConfigurations");
         //        settings = Main.JSON.convertValue(change.getSettings(), JavaSettings.class);
     }
 

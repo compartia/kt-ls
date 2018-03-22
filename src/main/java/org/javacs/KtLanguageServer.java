@@ -18,6 +18,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -34,22 +35,23 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
+import org.javacs.KtTextDocumentService.FileDiagnostic;
 
 import com.kt.advance.api.CAnalysisImpl;
 import com.kt.advance.api.CApplication;
 import com.kt.advance.api.CFile;
-import com.kt.advance.api.CFunctionCallsiteSPO;
 import com.kt.advance.api.FsAbstraction;
-import com.kt.advance.api.PO;
 import com.kt.advance.xml.model.FsAbstractionImpl;
 
 class KtLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");
-    int maxItems = 50;
+
     private final CompletableFuture<LanguageClient> client = new CompletableFuture<>();
     private final KtTextDocumentService textDocuments = new KtTextDocumentService(client, this);
     private final KtWorkspaceService workspace = new KtWorkspaceService(client, this, textDocuments);
     private File workspaceRoot;
+    private Map<File, List<FileDiagnostic>> poByFileMap;
+    private CAnalysisImpl cAnalysis;
 
     void clearFileDiagnostics(Path file) {
         client.thenAccept(
@@ -58,34 +60,36 @@ class KtLanguageServer implements LanguageServer {
                         file.toUri().toString(), new ArrayList<>())));
     }
 
-    public CAnalysisImpl cAnalysis;
-
     private void readXmls(Collection<CApplication> apps) {
         apps.forEach(app -> app.read());
         poByFileMap = new HashMap<>();
         apps.forEach(app -> {
-
-            app.getCfiles().forEach(f -> mapFilePpos(f));
-
+            app.getCfiles().forEach(f -> mapFilePpos(f, poByFileMap));
         });
     }
 
-    Map<File, List<PO>> poByFileMap;
+    private void mapFilePpos(CFile file, Map<File, List<FileDiagnostic>> poByFileMap) {
 
-    private void mapFilePpos(CFile file) {
+        final List<FileDiagnostic> filePOs = poByFileMap.computeIfAbsent(
+            file.getSourceFile(),
+            f -> new ArrayList<FileDiagnostic>());
 
-        final List<PO> filePOs = poByFileMap.computeIfAbsent(file.getSourceFile(), f -> new ArrayList<PO>());
         file.getCFunctions().forEach(function -> {
+            filePOs.addAll(
+                function.getPPOs()
+                        .stream()
+                        .map(FileDiagnostic::new)
+                        .collect(Collectors.toList()));
 
-            filePOs.addAll(function.getPPOs());
-
-            for (final CFunctionCallsiteSPO callsite : function.getCallsites()) {
-                filePOs.addAll(callsite.getSpos());
-            }
+            function.getCallsites().forEach(callsite -> filePOs.addAll(
+                callsite.getSpos()
+                        .stream()
+                        .map(FileDiagnostic::new)
+                        .collect(Collectors.toList())));
         });
     }
 
-    public Optional<List<PO>> getPOsByFile(File file) {
+    public Optional<List<FileDiagnostic>> getPOsByFile(File file) {
         return Optional.ofNullable(poByFileMap.get(file));
     }
 

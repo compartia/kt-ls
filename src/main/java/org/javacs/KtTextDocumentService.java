@@ -9,6 +9,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -58,6 +59,8 @@ import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
+import com.kt.advance.api.Definitions;
+import com.kt.advance.api.Definitions.POLevel;
 import com.kt.advance.api.PO;
 
 class KtTextDocumentService implements TextDocumentService {
@@ -84,17 +87,52 @@ class KtTextDocumentService implements TextDocumentService {
         return Sets.filter(activeDocuments.keySet(), uri -> uri.getScheme().equals("file"));
     }
 
-    static class FileDiagnostic implements Diagnostic<File> {
-        final PO po;
-        final File source;
+    static String getDescription(PO po) {
+        final StringBuffer sb = new StringBuffer();
 
-        public FileDiagnostic(PO po, File source) {
-            this.po = po;
-            this.source = source;
+        sb.append("#").append(po.getId()).append("\t");
+        sb.append("<").append(po.getStatus().label).append(">\t ");
+        sb.append(po.getPredicate().type.label).append("; \n");
+
+        sb.append(po.getLevel() == POLevel.SECONDARY ? "Secondary; " : "");
+        if (null != po.getExplaination()) {
+            sb.append(po.getExplaination());
+        }
+        sb.append("\n").append(po.getPredicate().express());
+
+        if (po.getDeps().level != Definitions.DepsLevel.s /* self */
+                && po.getDeps().level != Definitions.DepsLevel.i /* unknown */) {
+            sb.append("\n").append(po.getDeps().level.toString());
         }
 
-        @Override
-        public javax.tools.Diagnostic.Kind getKind() {
+        return sb.toString();
+    }
+
+    public static class FileDiagnostic implements Diagnostic<File> {
+
+        private final File source;
+
+        private final javax.tools.Diagnostic.Kind kind;
+        private final int line;
+        private final String message, code;
+        private final int id;
+
+        public int getId() {
+            return this.id;
+        }
+
+        public FileDiagnostic(PO po) {
+            this.id = po.getId();
+            this.kind = getKind(po);
+            this.source = po.getLocation().getCfile().getSourceFile();
+            this.line = po.getLocation().getLine();
+            this.code = po.getPredicate().type.label;
+
+            this.message = getDescription(po);
+
+        }
+
+        public static javax.tools.Diagnostic.Kind getKind(PO po) {
             switch (po.getStatus()) {
             case discharged:
                 return javax.tools.Diagnostic.Kind.NOTE;
@@ -102,9 +140,16 @@ class KtTextDocumentService implements TextDocumentService {
                 return javax.tools.Diagnostic.Kind.OTHER;
             case violation:
                 return javax.tools.Diagnostic.Kind.ERROR;
+            case dead:
+                return javax.tools.Diagnostic.Kind.WARNING;
             default:
                 return javax.tools.Diagnostic.Kind.WARNING;
             }
+        }
+
+        @Override
+        public javax.tools.Diagnostic.Kind getKind() {
+            return kind;
         }
 
         @Override
@@ -132,8 +177,7 @@ class KtTextDocumentService implements TextDocumentService {
 
         @Override
         public long getLineNumber() {
-            // TODO Auto-generated method stub
-            return po.getLocation().getLine();
+            return line;
         }
 
         @Override
@@ -145,23 +189,62 @@ class KtTextDocumentService implements TextDocumentService {
         @Override
         public String getCode() {
             // TODO Auto-generated method stub
-            return null;
+            return code;
         }
 
         @Override
         public String getMessage(Locale locale) {
-            return po.toString();
+            return message;
         }
 
     }
 
+    public static class DiagnosticComparator implements Comparator<FileDiagnostic> {
+
+        private final static int[][] severityOrders = {
+                { Diagnostic.Kind.ERROR.ordinal(), 0 },
+                { Diagnostic.Kind.MANDATORY_WARNING.ordinal(), 1 },
+                { Diagnostic.Kind.WARNING.ordinal(), 2 },
+                { Diagnostic.Kind.OTHER.ordinal(), 3 },
+                { Diagnostic.Kind.NOTE.ordinal(), 3 }
+
+        };
+
+        @Override
+        public int compare(FileDiagnostic a, FileDiagnostic b) {
+
+            int diff = severityOrders[b.kind.ordinal()][1] - severityOrders[a.kind.ordinal()][1];
+            if (diff == 0) {
+                diff = a.code.compareTo(b.code);
+            }
+            if (diff == 0) {
+                diff = a.id - b.id;
+            }
+            return diff;
+        }
+
+    }
+
+    private final static DiagnosticComparator diagnosticComparator = new DiagnosticComparator();
+
     private void reportPosByFile(File file, DiagnosticCollector<File> dc) {
-        final Optional<List<PO>> pOsByFile = server.getPOsByFile(file);
+        final Optional<List<FileDiagnostic>> pOsByFile = server.getPOsByFile(file);
+
+        if (pOsByFile.isPresent()) {
+
+            final List<FileDiagnostic> list = pOsByFile.get();
+
+            Collections.sort(list, diagnosticComparator);
+
+            //            final List<FileDiagnostic> vioations = list
+            //                    .stream().filter(d -> d.kind == Diagnostic.Kind.ERROR).collect(Collectors.toList());
+
+            list.forEach(dc::report);
+
+        }
 
         pOsByFile.ifPresent(
-            list -> list.stream()
-                    .map(x -> new FileDiagnostic(x, file))
-                    .forEach(diagnostic -> dc.report(diagnostic)));
+            list -> list.forEach(dc::report));
     }
 
     void doLint(Collection<URI> paths) {
