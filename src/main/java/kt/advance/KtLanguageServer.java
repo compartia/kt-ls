@@ -20,10 +20,9 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import javax.xml.bind.JAXBException;
 
+import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
@@ -42,8 +41,6 @@ import com.kt.advance.api.CFile;
 import com.kt.advance.api.FsAbstraction;
 import com.kt.advance.xml.model.FsAbstractionImpl;
 
-import kt.advance.KtTextDocumentService.FileDiagnostic;
-
 class KtLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");
 
@@ -51,7 +48,7 @@ class KtLanguageServer implements LanguageServer {
     private final KtTextDocumentService textDocuments = new KtTextDocumentService(client, this);
     private final KtWorkspaceService workspace = new KtWorkspaceService(client, this, textDocuments);
     private File workspaceRoot;
-    private Map<File, List<FileDiagnostic>> poByFileMap;
+    private Map<File, List<Diagnostic>> poByFileMap;
     private CAnalysisImpl cAnalysis;
 
     void clearFileDiagnostics(Path file) {
@@ -69,28 +66,28 @@ class KtLanguageServer implements LanguageServer {
         });
     }
 
-    private void mapFilePpos(CFile file, Map<File, List<FileDiagnostic>> poByFileMap) {
+    private void mapFilePpos(CFile file, Map<File, List<Diagnostic>> poByFileMap) {
 
-        final List<FileDiagnostic> filePOs = poByFileMap.computeIfAbsent(
+        final List<Diagnostic> filePOs = poByFileMap.computeIfAbsent(
             file.getSourceFile(),
-            f -> new ArrayList<FileDiagnostic>());
+            f -> new ArrayList<Diagnostic>());
 
         file.getCFunctions().forEach(function -> {
             filePOs.addAll(
                 function.getPPOs()
                         .stream()
-                        .map(FileDiagnostic::new)
+                        .map(POMapper::convert)
                         .collect(Collectors.toList()));
 
             function.getCallsites().forEach(callsite -> filePOs.addAll(
                 callsite.getSpos()
                         .stream()
-                        .map(FileDiagnostic::new)
+                        .map(POMapper::convert)
                         .collect(Collectors.toList())));
         });
     }
 
-    public Optional<List<FileDiagnostic>> getPOsByFile(File file) {
+    public Optional<List<Diagnostic>> getPOsByFile(File file) {
         return Optional.ofNullable(poByFileMap.get(file));
     }
 
@@ -207,28 +204,6 @@ class KtLanguageServer implements LanguageServer {
         };
 
         Logger.getLogger("").addHandler(sendToClient);
-    }
-
-    static void onDiagnostic(Diagnostic<? extends JavaFileObject> diagnostic) {
-        final Level level = level(diagnostic.getKind());
-        final String message = diagnostic.getMessage(null);
-
-        LOG.log(level, message);
-    }
-
-    private static Level level(Diagnostic.Kind kind) {
-        switch (kind) {
-        case ERROR:
-            return Level.SEVERE;
-        case WARNING:
-        case MANDATORY_WARNING:
-            return Level.WARNING;
-        case NOTE:
-            return Level.INFO;
-        case OTHER:
-        default:
-            return Level.FINE;
-        }
     }
 
 }
