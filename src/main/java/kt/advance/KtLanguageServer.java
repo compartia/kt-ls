@@ -206,26 +206,4 @@ class KtLanguageServer implements LanguageServer {
         Logger.getLogger("").addHandler(sendToClient);
     }
 
-    //    static void onDiagnostic(Diagnostic diagnostic) {
-    //        final Level level = level(diagnostic.getKind());
-    //        final String message = diagnostic.getMessage(null);
-    //
-    //        LOG.log(level, message);
-    //    }
-    //
-    //    private static Level level(Diagnostic.Kind kind) {
-    //        switch (kind) {
-    //        case ERROR:
-    //            return Level.SEVERE;
-    //        case WARNING:
-    //        case MANDATORY_WARNING:
-    //            return Level.WARNING;
-    //        case NOTE:
-    //            return Level.INFO;
-    //        case OTHER:
-    //        default:
-    //            return Level.FINE;
-    //        }
-    //    }
-
 }

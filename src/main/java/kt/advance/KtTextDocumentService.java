@@ -1,7 +1,6 @@
 package kt.advance;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -68,11 +67,6 @@ class KtTextDocumentService implements TextDocumentService {
         this.server = server;
     }
 
-    /** Text of file, if it is in the active set */
-    private Optional<String> activeContent(URI file) {
-        return Optional.ofNullable(activeDocuments.get(file)).map(doc -> doc.content);
-    }
-
     /**
      * All open files, not including things like old git-versions in a diff view
      */
@@ -98,74 +92,10 @@ class KtTextDocumentService implements TextDocumentService {
 
     }
 
-    @Deprecated
-    private void reportPosByFile(File file, DiagnosticCollector dc) {
-        final Optional<List<Diagnostic>> pOsByFile = server.getPOsByFile(file);
-
-        if (pOsByFile.isPresent()) {
-
-            final List<Diagnostic> list = pOsByFile.get();
-
-            Collections.sort(list, DiagnosticComparator.instance);
-
-            list.forEach(dc::report);
-
-        }
-
-    }
-
     void doLint(Collection<URI> paths) {
         LOG.info("Lint " + Joiner.on(", ").join(paths));
-        //
-        //        final DiagnosticCollector dc = new DiagnosticCollector();
-        //
-        //        paths.stream()
-        //                .map(File::new)
-        //                .forEach(file -> {
-        //                    reportPosByFile(file, dc);
-        //                });
 
-        //        final Map<URI, Optional<String>> content = paths
-        //                .stream()
-        //                .collect(Collectors.toMap(f -> f, this::activeContent));
-
-        publishDiagnostics(paths);
-
-    }
-
-    private void publishDiagnostics(
-            Collection<URI> touched) {
-
-        //        final Map<String, PublishDiagnosticsParams> files = touched.stream()
-        //                .collect(
-        //                    Collectors.toMap(
-        //                        uri -> uri.toString(),
-        //                        newUri -> new PublishDiagnosticsParams(
-        //                                newUri.toString(), new ArrayList<>())));
-        //
-        //        // Organize diagnostics by file
-        //        for (final Diagnostic error : diagnostics.getDiagnostics()) {
-        //
-        //            //            final URI uri = error.getSource().toURI();
-        //
-        //            //            final URI uri = new URI(error.getSource());
-        //
-        //            final PublishDiagnosticsParams publish = files.computeIfAbsent(
-        //                error.getSource(),
-        //                newUri -> new PublishDiagnosticsParams(
-        //                        newUri.toString(), new ArrayList<>()));
-        //
-        //            publish.getDiagnostics().add(error);
-        //            //            Lints.convert(error).ifPresent(publish.getDiagnostics()::add);
-        //        }
-        //
-        //        // If there are no errors in a file, put an empty PublishDiagnosticsParams
-        //        for (final URI each : touched) {
-        //            files.putIfAbsent(each.toString(), new PublishDiagnosticsParams());
-        //        }
-
-        touched.forEach(uri -> {
-            //            final File file = new File(uri);
+        paths.forEach(uri -> {
             final Optional<List<Diagnostic>> byFile = server.getPOsByFile(UNCPathTool.uri2file(uri));
 
             if (byFile.isPresent()) {
@@ -180,24 +110,6 @@ class KtTextDocumentService implements TextDocumentService {
 
         });
 
-        //        files.forEach(
-        //            (file, errors) -> {
-        //                if (touched.contains(file)) {
-        //                    client.join().publishDiagnostics(errors);
-        //
-        //                    LOG.info(
-        //                        "Published "
-        //                                + errors.getDiagnostics().size()
-        //                                + " errors from "
-        //                                + file);
-        //                } else {
-        //                    LOG.info(
-        //                        "Ignored "
-        //                                + errors.getDiagnostics().size()
-        //                                + " errors from not-open "
-        //                                + file);
-        //                }
-        //            });
     }
 
     @Override
