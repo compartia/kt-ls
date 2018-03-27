@@ -200,20 +200,21 @@ class KtTextDocumentService implements TextDocumentService {
     }
 
     public static class DiagnosticComparator implements Comparator<FileDiagnostic> {
+        public final static DiagnosticComparator instance = new DiagnosticComparator();
 
         private final static int[][] severityOrders = {
                 { Diagnostic.Kind.ERROR.ordinal(), 0 },
                 { Diagnostic.Kind.MANDATORY_WARNING.ordinal(), 1 },
                 { Diagnostic.Kind.WARNING.ordinal(), 2 },
                 { Diagnostic.Kind.OTHER.ordinal(), 3 },
-                { Diagnostic.Kind.NOTE.ordinal(), 3 }
+                { Diagnostic.Kind.NOTE.ordinal(), 4 }
 
         };
 
         @Override
         public int compare(FileDiagnostic a, FileDiagnostic b) {
 
-            int diff = severityOrders[b.kind.ordinal()][1] - severityOrders[a.kind.ordinal()][1];
+            int diff = severityOrders[a.kind.ordinal()][1] - severityOrders[b.kind.ordinal()][1];
             if (diff == 0) {
                 diff = a.code.compareTo(b.code);
             }
@@ -225,8 +226,6 @@ class KtTextDocumentService implements TextDocumentService {
 
     }
 
-    private final static DiagnosticComparator diagnosticComparator = new DiagnosticComparator();
-
     private void reportPosByFile(File file, DiagnosticCollector<File> dc) {
         final Optional<List<FileDiagnostic>> pOsByFile = server.getPOsByFile(file);
 
@@ -234,17 +233,12 @@ class KtTextDocumentService implements TextDocumentService {
 
             final List<FileDiagnostic> list = pOsByFile.get();
 
-            Collections.sort(list, diagnosticComparator);
-
-            //            final List<FileDiagnostic> vioations = list
-            //                    .stream().filter(d -> d.kind == Diagnostic.Kind.ERROR).collect(Collectors.toList());
+            Collections.sort(list, DiagnosticComparator.instance);
 
             list.forEach(dc::report);
 
         }
 
-        pOsByFile.ifPresent(
-            list -> list.forEach(dc::report));
     }
 
     void doLint(Collection<URI> paths) {
@@ -258,9 +252,9 @@ class KtTextDocumentService implements TextDocumentService {
                     reportPosByFile(file, dc);
                 });
 
-        final Map<URI, Optional<String>> content = paths
-                .stream()
-                .collect(Collectors.toMap(f -> f, this::activeContent));
+        //        final Map<URI, Optional<String>> content = paths
+        //                .stream()
+        //                .collect(Collectors.toMap(f -> f, this::activeContent));
 
         publishDiagnostics(paths, dc);
 

@@ -2,7 +2,6 @@ package kt.advance;
 
 //import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -88,19 +87,15 @@ public class Main {
 
     public static void main(String[] args) {
         //XXX: use arguments to select master or slave mode
+        setRootFormat();
         try {
-
-            final Class<?> main = Class.forName("kt.advance.Main");
-            final Method run = main.getMethod("run");
-            run.invoke(null);
+            run();
         } catch (final Exception e) {
             LOG.log(Level.SEVERE, "Failed", e);
         }
     }
 
     public static void runSlave() {
-
-        setRootFormat();
 
         try {
             final Socket connection = connectToNode();
