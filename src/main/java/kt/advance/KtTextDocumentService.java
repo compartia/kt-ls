@@ -12,16 +12,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticCollector;
 
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
@@ -29,6 +24,7 @@ import org.eclipse.lsp4j.CodeLensParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
+import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -59,9 +55,6 @@ import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
-import com.kt.advance.api.Definitions;
-import com.kt.advance.api.Definitions.POLevel;
-import com.kt.advance.api.PO;
 
 class KtTextDocumentService implements TextDocumentService {
     private final CompletableFuture<LanguageClient> client;
@@ -76,7 +69,7 @@ class KtTextDocumentService implements TextDocumentService {
     }
 
     /** Text of file, if it is in the active set */
-    Optional<String> activeContent(URI file) {
+    private Optional<String> activeContent(URI file) {
         return Optional.ofNullable(activeDocuments.get(file)).map(doc -> doc.content);
     }
 
@@ -87,151 +80,31 @@ class KtTextDocumentService implements TextDocumentService {
         return Sets.filter(activeDocuments.keySet(), uri -> uri.getScheme().equals("file"));
     }
 
-    static String getDescription(PO po) {
-        final StringBuffer sb = new StringBuffer();
-
-        sb.append("#").append(po.getId()).append("\t");
-        sb.append("<").append(po.getStatus().label).append(">\t ");
-        sb.append(po.getPredicate().type.label).append("; \n");
-
-        sb.append(po.getLevel() == POLevel.SECONDARY ? "Secondary; " : "");
-        if (null != po.getExplaination()) {
-            sb.append(po.getExplaination());
-        }
-        sb.append("\n").append(po.getPredicate().express());
-
-        if (po.getDeps().level != Definitions.DepsLevel.s /* self */
-                && po.getDeps().level != Definitions.DepsLevel.i /* unknown */) {
-            sb.append("\n").append(po.getDeps().level.toString());
-        }
-
-        return sb.toString();
-    }
-
-    public static class FileDiagnostic implements Diagnostic<File> {
-
-        private final File source;
-
-        private final javax.tools.Diagnostic.Kind kind;
-        private final int line;
-        private final String message, code;
-        private final int id;
-
-        public int getId() {
-            return this.id;
-        }
-
-        public FileDiagnostic(PO po) {
-            this.id = po.getId();
-            this.kind = getKind(po);
-            this.source = po.getLocation().getCfile().getSourceFile();
-            this.line = po.getLocation().getLine();
-            this.code = po.getPredicate().type.label;
-
-            this.message = getDescription(po);
-
-        }
-
-        public static javax.tools.Diagnostic.Kind getKind(PO po) {
-            switch (po.getStatus()) {
-            case discharged:
-                return javax.tools.Diagnostic.Kind.NOTE;
-            case open:
-                return javax.tools.Diagnostic.Kind.OTHER;
-            case violation:
-                return javax.tools.Diagnostic.Kind.ERROR;
-            case dead:
-                return javax.tools.Diagnostic.Kind.WARNING;
-            default:
-                return javax.tools.Diagnostic.Kind.WARNING;
-            }
-        }
-
-        @Override
-        public javax.tools.Diagnostic.Kind getKind() {
-            return kind;
-        }
-
-        @Override
-        public File getSource() {
-            return source;
-        }
-
-        @Override
-        public long getPosition() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public long getStartPosition() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public long getEndPosition() {
-            // TODO Auto-generated method stub
-            return Integer.MAX_VALUE;
-        }
-
-        @Override
-        public long getLineNumber() {
-            return line;
-        }
-
-        @Override
-        public long getColumnNumber() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public String getCode() {
-            // TODO Auto-generated method stub
-            return code;
-        }
-
-        @Override
-        public String getMessage(Locale locale) {
-            return message;
-        }
-
-    }
-
-    public static class DiagnosticComparator implements Comparator<FileDiagnostic> {
+    public static class DiagnosticComparator implements Comparator<Diagnostic> {
         public final static DiagnosticComparator instance = new DiagnosticComparator();
 
-        private final static int[][] severityOrders = {
-                { Diagnostic.Kind.ERROR.ordinal(), 0 },
-                { Diagnostic.Kind.MANDATORY_WARNING.ordinal(), 1 },
-                { Diagnostic.Kind.WARNING.ordinal(), 2 },
-                { Diagnostic.Kind.OTHER.ordinal(), 3 },
-                { Diagnostic.Kind.NOTE.ordinal(), 4 }
-
-        };
-
         @Override
-        public int compare(FileDiagnostic a, FileDiagnostic b) {
+        public int compare(Diagnostic a, Diagnostic b) {
 
-            int diff = severityOrders[a.kind.ordinal()][1] - severityOrders[b.kind.ordinal()][1];
+            int diff = a.getSeverity().getValue() - b.getSeverity().getValue();
             if (diff == 0) {
-                diff = a.code.compareTo(b.code);
+                diff = a.getCode().compareTo(b.getCode());
             }
             if (diff == 0) {
-                diff = a.id - b.id;
+                diff = a.getMessage().compareTo(b.getMessage());
             }
             return diff;
         }
 
     }
 
-    private void reportPosByFile(File file, DiagnosticCollector<File> dc) {
-        final Optional<List<FileDiagnostic>> pOsByFile = server.getPOsByFile(file);
+    @Deprecated
+    private void reportPosByFile(File file, DiagnosticCollector dc) {
+        final Optional<List<Diagnostic>> pOsByFile = server.getPOsByFile(file);
 
         if (pOsByFile.isPresent()) {
 
-            final List<FileDiagnostic> list = pOsByFile.get();
+            final List<Diagnostic> list = pOsByFile.get();
 
             Collections.sort(list, DiagnosticComparator.instance);
 
@@ -243,67 +116,88 @@ class KtTextDocumentService implements TextDocumentService {
 
     void doLint(Collection<URI> paths) {
         LOG.info("Lint " + Joiner.on(", ").join(paths));
-
-        final DiagnosticCollector<File> dc = new DiagnosticCollector<>();
-
-        paths.stream()
-                .map(File::new)
-                .forEach(file -> {
-                    reportPosByFile(file, dc);
-                });
+        //
+        //        final DiagnosticCollector dc = new DiagnosticCollector();
+        //
+        //        paths.stream()
+        //                .map(File::new)
+        //                .forEach(file -> {
+        //                    reportPosByFile(file, dc);
+        //                });
 
         //        final Map<URI, Optional<String>> content = paths
         //                .stream()
         //                .collect(Collectors.toMap(f -> f, this::activeContent));
 
-        publishDiagnostics(paths, dc);
+        publishDiagnostics(paths);
 
     }
 
     private void publishDiagnostics(
-            Collection<URI> touched,
-            DiagnosticCollector<File> diagnostics) {
+            Collection<URI> touched) {
 
-        final Map<URI, PublishDiagnosticsParams> files = touched.stream()
-                .collect(
-                    Collectors.toMap(
-                        uri -> uri,
-                        newUri -> new PublishDiagnosticsParams(
-                                newUri.toString(), new ArrayList<>())));
+        //        final Map<String, PublishDiagnosticsParams> files = touched.stream()
+        //                .collect(
+        //                    Collectors.toMap(
+        //                        uri -> uri.toString(),
+        //                        newUri -> new PublishDiagnosticsParams(
+        //                                newUri.toString(), new ArrayList<>())));
+        //
+        //        // Organize diagnostics by file
+        //        for (final Diagnostic error : diagnostics.getDiagnostics()) {
+        //
+        //            //            final URI uri = error.getSource().toURI();
+        //
+        //            //            final URI uri = new URI(error.getSource());
+        //
+        //            final PublishDiagnosticsParams publish = files.computeIfAbsent(
+        //                error.getSource(),
+        //                newUri -> new PublishDiagnosticsParams(
+        //                        newUri.toString(), new ArrayList<>()));
+        //
+        //            publish.getDiagnostics().add(error);
+        //            //            Lints.convert(error).ifPresent(publish.getDiagnostics()::add);
+        //        }
+        //
+        //        // If there are no errors in a file, put an empty PublishDiagnosticsParams
+        //        for (final URI each : touched) {
+        //            files.putIfAbsent(each.toString(), new PublishDiagnosticsParams());
+        //        }
 
-        // Organize diagnostics by file
-        for (final javax.tools.Diagnostic<? extends File> error : diagnostics.getDiagnostics()) {
-            final URI uri = error.getSource().toURI();
-            final PublishDiagnosticsParams publish = files.computeIfAbsent(
-                uri,
-                newUri -> new PublishDiagnosticsParams(
-                        newUri.toString(), new ArrayList<>()));
-            Lints.convert(error).ifPresent(publish.getDiagnostics()::add);
-        }
+        touched.forEach(uri -> {
+            //            final File file = new File(uri);
+            final Optional<List<Diagnostic>> byFile = server.getPOsByFile(UNCPathTool.uri2file(uri));
 
-        // If there are no errors in a file, put an empty PublishDiagnosticsParams
-        for (final URI each : touched) {
-            files.putIfAbsent(each, new PublishDiagnosticsParams());
-        }
+            if (byFile.isPresent()) {
+                final PublishDiagnosticsParams eee = new PublishDiagnosticsParams(uri.toString(), byFile.get());
+                client.join().publishDiagnostics(eee);
+                LOG.info(
+                    "Published "
+                            + eee.getDiagnostics().size()
+                            + " errors from "
+                            + uri);
+            }
 
-        files.forEach(
-            (file, errors) -> {
-                if (touched.contains(file)) {
-                    client.join().publishDiagnostics(errors);
+        });
 
-                    LOG.info(
-                        "Published "
-                                + errors.getDiagnostics().size()
-                                + " errors from "
-                                + file);
-                } else {
-                    LOG.info(
-                        "Ignored "
-                                + errors.getDiagnostics().size()
-                                + " errors from not-open "
-                                + file);
-                }
-            });
+        //        files.forEach(
+        //            (file, errors) -> {
+        //                if (touched.contains(file)) {
+        //                    client.join().publishDiagnostics(errors);
+        //
+        //                    LOG.info(
+        //                        "Published "
+        //                                + errors.getDiagnostics().size()
+        //                                + " errors from "
+        //                                + file);
+        //                } else {
+        //                    LOG.info(
+        //                        "Ignored "
+        //                                + errors.getDiagnostics().size()
+        //                                + " errors from not-open "
+        //                                + file);
+        //                }
+        //            });
     }
 
     @Override

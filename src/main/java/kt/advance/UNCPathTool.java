@@ -12,13 +12,17 @@ public class UNCPathTool {
         return uri2file(new URI(uriStr));
     }
 
-    public static File uri2file(URI urlString) throws MalformedURLException, URISyntaxException {
+    public static File uri2file(URI urlString) {
 
         URI uri = urlString;
 
         if (uri.getAuthority() != null && uri.getAuthority().length() > 0) {
             // Hack for UNC Path
-            uri = (new URL("file://" + urlString.toString().substring("file:".length()))).toURI();
+            try {
+                uri = (new URL("file://" + urlString.toString().substring("file:".length()))).toURI();
+            } catch (MalformedURLException | URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         final File file = new File(uri);
