@@ -1,4 +1,4 @@
-package org.javacs;
+package kt.advance;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -6,23 +6,25 @@ import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import javax.xml.bind.JAXBException;
 
+import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
@@ -38,18 +40,18 @@ import org.eclipse.lsp4j.services.WorkspaceService;
 import com.kt.advance.api.CAnalysisImpl;
 import com.kt.advance.api.CApplication;
 import com.kt.advance.api.CFile;
-import com.kt.advance.api.CFunctionCallsiteSPO;
 import com.kt.advance.api.FsAbstraction;
-import com.kt.advance.api.PO;
 import com.kt.advance.xml.model.FsAbstractionImpl;
 
 class KtLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");
-    int maxItems = 50;
+
     private final CompletableFuture<LanguageClient> client = new CompletableFuture<>();
     private final KtTextDocumentService textDocuments = new KtTextDocumentService(client, this);
     private final KtWorkspaceService workspace = new KtWorkspaceService(client, this, textDocuments);
     private File workspaceRoot;
+    private Map<File, List<Diagnostic>> poByFileMap;
+    private CAnalysisImpl cAnalysis;
 
     void clearFileDiagnostics(Path file) {
         client.thenAccept(
@@ -58,46 +60,68 @@ class KtLanguageServer implements LanguageServer {
                         file.toUri().toString(), new ArrayList<>())));
     }
 
-    public CAnalysisImpl cAnalysis;
-
     private void readXmls(Collection<CApplication> apps) {
-        apps.forEach(app -> app.read());
-        poByFileMap = new HashMap<>();
-        apps.forEach(app -> {
+        final Instant start = Instant.now();
+        poByFileMap = new ConcurrentHashMap<>();
 
-            app.getCfiles().forEach(f -> mapFilePpos(f));
+        apps.stream()
+                .forEach(app -> {
+                    LOG.log(Level.INFO, "reading " + app.getBaseDir() + "\t in \t" + Thread.currentThread().getName());
+                    app.read();
+                    app.getCfiles().forEach(
+                        f -> mapFilePpos(f, poByFileMap));
 
-        });
+                });
+        final Instant end = Instant.now();
+
+        /**
+         * kendra, parallel: Time elapsed for reading is PT4.773S nagois,
+         * parallel: Time elapsed for reading is PT12.338S
+         */
+        LOG.info("Time elapsed for reading  is " + Duration.between(start, end));
+
     }
 
-    Map<File, List<PO>> poByFileMap;
+    private void mapFilePpos(CFile file, Map<File, List<Diagnostic>> poByFileMap) {
 
-    private void mapFilePpos(CFile file) {
+        final List<Diagnostic> filePOs = poByFileMap.computeIfAbsent(
+            file.getSourceFile(),
+            f -> new ArrayList<Diagnostic>());
 
-        final List<PO> filePOs = poByFileMap.computeIfAbsent(file.getSourceFile(), f -> new ArrayList<PO>());
         file.getCFunctions().forEach(function -> {
+            filePOs.addAll(
+                function.getPPOs()
+                        .stream()
+                        .map(POMapper::convert)
+                        .collect(Collectors.toList()));
 
-            filePOs.addAll(function.getPPOs());
-
-            for (final CFunctionCallsiteSPO callsite : function.getCallsites()) {
-                filePOs.addAll(callsite.getSpos());
-            }
+            function.getCallsites().forEach(callsite -> filePOs.addAll(
+                callsite.getSpos()
+                        .stream()
+                        .map(POMapper::convert)
+                        .collect(Collectors.toList())));
         });
     }
 
-    public Optional<List<PO>> getPOsByFile(File file) {
+    public Optional<List<Diagnostic>> getPOsByFile(File file) {
         return Optional.ofNullable(poByFileMap.get(file));
     }
 
-    private void runXmlScanner(File wsRoot) throws JAXBException {
-        final FsAbstraction fs = new FsAbstractionImpl(wsRoot);
-        cAnalysis = new CAnalysisImpl(fs);
-        cAnalysis.readTargetDirs();
+    private void runXmlScanner(File workspaceRoot) throws JAXBException {
 
-        final CApplication appByBaseDir = cAnalysis.getAppByBaseDir(wsRoot);
+        LOG.log(Level.INFO, "scanning " + workspaceRoot);
+
+        final FsAbstraction fs = new FsAbstractionImpl(workspaceRoot);
+        cAnalysis = new CAnalysisImpl(fs);
+        @SuppressWarnings("unused")
+        final Map<File, CApplication> apps = cAnalysis.scanForCApps();
+
+        final CApplication appByBaseDir = cAnalysis.getAppByBaseDir(workspaceRoot);
         if (appByBaseDir != null) {
+            //scan single dir
             readXmls(Collections.singleton(appByBaseDir));
         } else {
+            //scan all
             readXmls(cAnalysis.getApps());
         }
 
@@ -202,28 +226,6 @@ class KtLanguageServer implements LanguageServer {
         };
 
         Logger.getLogger("").addHandler(sendToClient);
-    }
-
-    static void onDiagnostic(Diagnostic<? extends JavaFileObject> diagnostic) {
-        final Level level = level(diagnostic.getKind());
-        final String message = diagnostic.getMessage(null);
-
-        LOG.log(level, message);
-    }
-
-    private static Level level(Diagnostic.Kind kind) {
-        switch (kind) {
-        case ERROR:
-            return Level.SEVERE;
-        case WARNING:
-        case MANDATORY_WARNING:
-            return Level.WARNING;
-        case NOTE:
-            return Level.INFO;
-        case OTHER:
-        default:
-            return Level.FINE;
-        }
     }
 
 }

@@ -1,7 +1,6 @@
-package org.javacs;
+package kt.advance;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -9,18 +8,14 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticCollector;
 
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
@@ -28,6 +23,7 @@ import org.eclipse.lsp4j.CodeLensParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
+import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -58,7 +54,6 @@ import org.eclipse.lsp4j.services.TextDocumentService;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
-import com.kt.advance.api.PO;
 
 class KtTextDocumentService implements TextDocumentService {
     private final CompletableFuture<LanguageClient> client;
@@ -72,11 +67,6 @@ class KtTextDocumentService implements TextDocumentService {
         this.server = server;
     }
 
-    /** Text of file, if it is in the active set */
-    Optional<String> activeContent(URI file) {
-        return Optional.ofNullable(activeDocuments.get(file)).map(doc -> doc.content);
-    }
-
     /**
      * All open files, not including things like old git-versions in a diff view
      */
@@ -84,149 +74,42 @@ class KtTextDocumentService implements TextDocumentService {
         return Sets.filter(activeDocuments.keySet(), uri -> uri.getScheme().equals("file"));
     }
 
-    static class FileDiagnostic implements Diagnostic<File> {
-        final PO po;
-        final File source;
-
-        public FileDiagnostic(PO po, File source) {
-            this.po = po;
-            this.source = source;
-        }
+    public static class DiagnosticComparator implements Comparator<Diagnostic> {
+        public final static DiagnosticComparator instance = new DiagnosticComparator();
 
         @Override
-        public javax.tools.Diagnostic.Kind getKind() {
-            switch (po.getStatus()) {
-            case discharged:
-                return javax.tools.Diagnostic.Kind.NOTE;
-            case open:
-                return javax.tools.Diagnostic.Kind.OTHER;
-            case violation:
-                return javax.tools.Diagnostic.Kind.ERROR;
-            default:
-                return javax.tools.Diagnostic.Kind.WARNING;
+        public int compare(Diagnostic a, Diagnostic b) {
+
+            int diff = a.getSeverity().getValue() - b.getSeverity().getValue();
+            if (diff == 0) {
+                diff = a.getCode().compareTo(b.getCode());
             }
+            if (diff == 0) {
+                diff = a.getMessage().compareTo(b.getMessage());
+            }
+            return diff;
         }
 
-        @Override
-        public File getSource() {
-            return source;
-        }
-
-        @Override
-        public long getPosition() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public long getStartPosition() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public long getEndPosition() {
-            // TODO Auto-generated method stub
-            return Integer.MAX_VALUE;
-        }
-
-        @Override
-        public long getLineNumber() {
-            // TODO Auto-generated method stub
-            return po.getLocation().getLine();
-        }
-
-        @Override
-        public long getColumnNumber() {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public String getCode() {
-            // TODO Auto-generated method stub
-            return null;
-        }
-
-        @Override
-        public String getMessage(Locale locale) {
-            return po.toString();
-        }
-
-    }
-
-    private void reportPosByFile(File file, DiagnosticCollector<File> dc) {
-        final Optional<List<PO>> pOsByFile = server.getPOsByFile(file);
-
-        pOsByFile.ifPresent(
-            list -> list.stream()
-                    .map(x -> new FileDiagnostic(x, file))
-                    .forEach(diagnostic -> dc.report(diagnostic)));
     }
 
     void doLint(Collection<URI> paths) {
         LOG.info("Lint " + Joiner.on(", ").join(paths));
 
-        final DiagnosticCollector<File> dc = new DiagnosticCollector<>();
+        paths.forEach(uri -> {
+            final Optional<List<Diagnostic>> byFile = server.getPOsByFile(UNCPathTool.uri2file(uri));
 
-        paths.stream()
-                .map(File::new)
-                .forEach(file -> {
-                    reportPosByFile(file, dc);
-                });
+            if (byFile.isPresent()) {
+                final PublishDiagnosticsParams eee = new PublishDiagnosticsParams(uri.toString(), byFile.get());
+                client.join().publishDiagnostics(eee);
+                LOG.info(
+                    "Published "
+                            + eee.getDiagnostics().size()
+                            + " errors from "
+                            + uri);
+            }
 
-        final Map<URI, Optional<String>> content = paths
-                .stream()
-                .collect(Collectors.toMap(f -> f, this::activeContent));
+        });
 
-        publishDiagnostics(paths, dc);
-
-    }
-
-    private void publishDiagnostics(
-            Collection<URI> touched,
-            DiagnosticCollector<File> diagnostics) {
-
-        final Map<URI, PublishDiagnosticsParams> files = touched.stream()
-                .collect(
-                    Collectors.toMap(
-                        uri -> uri,
-                        newUri -> new PublishDiagnosticsParams(
-                                newUri.toString(), new ArrayList<>())));
-
-        // Organize diagnostics by file
-        for (final javax.tools.Diagnostic<? extends File> error : diagnostics.getDiagnostics()) {
-            final URI uri = error.getSource().toURI();
-            final PublishDiagnosticsParams publish = files.computeIfAbsent(
-                uri,
-                newUri -> new PublishDiagnosticsParams(
-                        newUri.toString(), new ArrayList<>()));
-            Lints.convert(error).ifPresent(publish.getDiagnostics()::add);
-        }
-
-        // If there are no errors in a file, put an empty PublishDiagnosticsParams
-        for (final URI each : touched) {
-            files.putIfAbsent(each, new PublishDiagnosticsParams());
-        }
-
-        files.forEach(
-            (file, errors) -> {
-                if (touched.contains(file)) {
-                    client.join().publishDiagnostics(errors);
-
-                    LOG.info(
-                        "Published "
-                                + errors.getDiagnostics().size()
-                                + " errors from "
-                                + file);
-                } else {
-                    LOG.info(
-                        "Ignored "
-                                + errors.getDiagnostics().size()
-                                + " errors from not-open "
-                                + file);
-                }
-            });
     }
 
     @Override

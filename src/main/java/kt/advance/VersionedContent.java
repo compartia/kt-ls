@@ -1,4 +1,4 @@
-package org.javacs;
+package kt.advance;
 
 class VersionedContent {
     final String content;
