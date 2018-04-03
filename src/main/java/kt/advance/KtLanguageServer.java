@@ -6,14 +6,16 @@ import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -59,11 +61,25 @@ class KtLanguageServer implements LanguageServer {
     }
 
     private void readXmls(Collection<CApplication> apps) {
-        apps.forEach(app -> app.read());
-        poByFileMap = new HashMap<>();
-        apps.forEach(app -> {
-            app.getCfiles().forEach(f -> mapFilePpos(f, poByFileMap));
-        });
+        final Instant start = Instant.now();
+        poByFileMap = new ConcurrentHashMap<>();
+
+        apps.stream()
+                .forEach(app -> {
+                    LOG.log(Level.INFO, "reading " + app.getBaseDir() + "\t in \t" + Thread.currentThread().getName());
+                    app.read();
+                    app.getCfiles().forEach(
+                        f -> mapFilePpos(f, poByFileMap));
+
+                });
+        final Instant end = Instant.now();
+
+        /**
+         * kendra, parallel: Time elapsed for reading is PT4.773S nagois,
+         * parallel: Time elapsed for reading is PT12.338S
+         */
+        LOG.info("Time elapsed for reading  is " + Duration.between(start, end));
+
     }
 
     private void mapFilePpos(CFile file, Map<File, List<Diagnostic>> poByFileMap) {
@@ -91,15 +107,21 @@ class KtLanguageServer implements LanguageServer {
         return Optional.ofNullable(poByFileMap.get(file));
     }
 
-    private void runXmlScanner(File wsRoot) throws JAXBException {
-        final FsAbstraction fs = new FsAbstractionImpl(wsRoot);
-        cAnalysis = new CAnalysisImpl(fs);
-        cAnalysis.readTargetDirs();
+    private void runXmlScanner(File workspaceRoot) throws JAXBException {
 
-        final CApplication appByBaseDir = cAnalysis.getAppByBaseDir(wsRoot);
+        LOG.log(Level.INFO, "scanning " + workspaceRoot);
+
+        final FsAbstraction fs = new FsAbstractionImpl(workspaceRoot);
+        cAnalysis = new CAnalysisImpl(fs);
+        @SuppressWarnings("unused")
+        final Map<File, CApplication> apps = cAnalysis.scanForCApps();
+
+        final CApplication appByBaseDir = cAnalysis.getAppByBaseDir(workspaceRoot);
         if (appByBaseDir != null) {
+            //scan single dir
             readXmls(Collections.singleton(appByBaseDir));
         } else {
+            //scan all
             readXmls(cAnalysis.getApps());
         }
 
