@@ -1,6 +1,5 @@
 package kt.advance;
 
-//import com.sun.tools.javac.api.JavacTool;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -16,14 +15,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
 import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -47,15 +45,7 @@ public class Main {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false);
 
-    private static final Logger LOG = Logger.getLogger("main");
-
-    public static void setRootFormat() {
-        final Logger root = Logger.getLogger("");
-
-        for (final Handler h : root.getHandlers()) {
-            h.setFormatter(new LogFormat());
-        }
-    }
+    static final Logger LOG = LoggerFactory.getLogger(Main.class.getName());
 
     private static SimpleModule pathAsJson() {
         final SimpleModule m = new SimpleModule();
@@ -86,32 +76,40 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        //XXX: use arguments to select master or slave mode
-        setRootFormat();
+        LOG.info("starting");
+
         try {
-            run();
+
+            final String slave = System.getProperty("ktls.slave");
+            if (slave != null) {
+                runSlave();
+            } else {
+                runMaster();
+            }
+
         } catch (final Exception e) {
-            LOG.log(Level.SEVERE, "Failed", e);
+            LOG.error("Failed", e);
         }
     }
 
     public static void runSlave() {
+        System.out.println("running in slave mode");
 
         try {
             final Socket connection = connectToNode();
 
             run(connection);
         } catch (final Throwable t) {
-            LOG.log(Level.SEVERE, t.getMessage(), t);
+            LOG.error(t.getMessage(), t);
 
             System.exit(1);
         }
     }
 
     private static Socket connectToNode() throws IOException {
-        final String port = System.getProperty("javacs.port");
+        final String port = System.getProperty("clientport");
 
-        Objects.requireNonNull(port, "-Djavacs.port=? is required");
+        Objects.requireNonNull(port, "-Dclientport=? is required");
 
         LOG.info("Connecting to " + port);
 
@@ -122,9 +120,12 @@ public class Main {
         return socket;
     }
 
-    public static void run() throws InterruptedException, IOException {
-        final String port = System.getProperty("javacs.port");
-        Objects.requireNonNull(port, "-Djavacs.port=? is required");
+    public static void runMaster() throws InterruptedException, IOException {
+
+        LOG.info("running in master mode");
+
+        final String port = System.getProperty("clientport");
+        Objects.requireNonNull(port, "-Dclientport=? is required");
         LOG.info("Binding to " + port);
 
         final KtLanguageServer languageServer = new KtLanguageServer();
