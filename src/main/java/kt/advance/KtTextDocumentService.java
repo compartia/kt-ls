@@ -12,7 +12,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
@@ -96,17 +95,20 @@ class KtTextDocumentService implements TextDocumentService {
         LOG.info("Lint " + Joiner.on(", ").join(paths));
 
         paths.forEach(uri -> {
-            final Optional<List<Diagnostic>> byFile = server.getPOsByFile(UNCPathTool.uri2file(uri));
+            server.getPOsByFile(UNCPathTool.uri2file(uri))
 
-            if (byFile.isPresent()) {
-                final PublishDiagnosticsParams eee = new PublishDiagnosticsParams(uri.toString(), byFile.get());
-                client.join().publishDiagnostics(eee);
-                LOG.info(
-                    "Published "
-                            + eee.getDiagnostics().size()
-                            + " errors from "
-                            + uri);
-            }
+                    .ifPresent(list -> {
+
+                        Collections.sort(list, DiagnosticComparator.instance);
+
+                        final PublishDiagnosticsParams eee = new PublishDiagnosticsParams(uri.toString(), list);
+                        client.join().publishDiagnostics(eee);
+                        LOG.info("Published "
+                                + eee.getDiagnostics().size()
+                                + " errors from "
+                                + uri);
+
+                    });
 
         });
 

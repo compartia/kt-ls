@@ -20,7 +20,7 @@ public class POMapper {
         diagnostic.setRange(range);
         diagnostic.setCode(po.getPredicate().type.label);
         diagnostic.setMessage(description(po));
-        diagnostic.setSource(po.getLevel() == POLevel.PRIMARY ? "KT Advance" : "KT Advance (secondary)");
+        diagnostic.setSource(po.getLevel() == POLevel.PRIMARY ? "KT Advance" : "KT Advance [secondary]");
 
         return diagnostic;
 
@@ -46,7 +46,7 @@ public class POMapper {
         sb.append("<").append(po.getStatus().label).append(">\t ");
         sb.append(po.getPredicate().type.label).append("; \n");
 
-        sb.append(po.getLevel() == POLevel.SECONDARY ? "Secondary; " : "");
+        //        sb.append(po.getLevel() == POLevel.SECONDARY ? "Secondary; " : "");
         if (null != po.getExplaination()) {
             sb.append(po.getExplaination());
         }
