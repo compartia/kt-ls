@@ -1,7 +1,6 @@
 'use strict';
 
 
-
 import { Trace } from 'vscode-jsonrpc';
 import { workspace, ExtensionContext, window, commands } from 'vscode';
 import { LanguageClient, LanguageClientOptions } from 'vscode-languageclient';

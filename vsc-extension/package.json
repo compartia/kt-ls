@@ -14,10 +14,13 @@
         "onLanguage:c"
     ],
     "main": "./out/extension",
+    "files": [
+        "../out/kt-ls.jar"
+    ],
     "contributes": {},
     "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
+        "vscode:prepublish": "tsc -p ./",
+        "compile": "tsc -watch -p ./",
         "watch": "tsc -watch -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
@@ -31,10 +34,10 @@
         "portfinder": "^1.0.13"
     },
     "devDependencies": {
-        "typescript": "^2.6.1",
-        "vscode": "^1.1.6",
+        "@types/node": "^6.0.40",
+        "@types/glob": "5.0.30",
+        "@types/mocha": "^2.2.42",
         "tslint": "^5.8.0",
-        "@types/node": "^7.0.43",
-        "@types/mocha": "^2.2.42"
+        "vscode": "^1.1.6"
     }
 }

@@ -8,8 +8,10 @@ set -e
 npm install
 
 # Build fat jar
+cd ..
 mvn package 
 
+cd vsc-extension
 # Build vsix
 vsce package -o build.vsix
 

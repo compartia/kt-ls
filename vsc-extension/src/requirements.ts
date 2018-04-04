@@ -15,12 +15,6 @@ export interface RequirementsData {
     java_version: number;
 }
 
-interface ErrorData {
-    message: string;
-    label: string;
-    openUrl: Uri;
-    replaceClose: boolean;
-}
 /**
  * Resolves the requirements needed to run the extension.
  * Returns a promise that will resolve to a RequirementsData if
@@ -51,7 +45,7 @@ function checkJavaRuntime(): Promise<string> {
         }
         if (javaHome) {
             javaHome = expandHomeDir(javaHome);
-            if (!pathExists.sync(javaHome)) {
+            if (!pathExists.sync(<string>javaHome)) {
                 openJDKDownload(reject, source + ' points to a missing folder');
             }
             if (!pathExists.sync(path.resolve(<string>javaHome, 'bin', JAVAC_FILENAME))) {
