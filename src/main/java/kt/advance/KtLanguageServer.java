@@ -64,7 +64,7 @@ class KtLanguageServer implements LanguageServer {
         final Instant start = Instant.now();
         poByFileMap = new ConcurrentHashMap<>();
 
-        apps.stream()
+        apps.parallelStream()
                 .forEach(app -> {
                     LOG.log(Level.INFO, "reading " + app.getBaseDir() + "\t in \t" + Thread.currentThread().getName());
                     app.read();
