@@ -43,6 +43,8 @@ import com.kt.advance.api.CFile;
 import com.kt.advance.api.FsAbstraction;
 import com.kt.advance.xml.model.FsAbstractionImpl;
 
+import kt.advance.KtTextDocumentService.DiagnosticComparator;
+
 class KtLanguageServer implements LanguageServer {
     private static final Logger LOG = Logger.getLogger("main");
 
@@ -74,7 +76,7 @@ class KtLanguageServer implements LanguageServer {
                 });
         final Instant end = Instant.now();
 
-        /**
+        /*
          * kendra, parallel: Time elapsed for reading is PT4.773S nagois,
          * parallel: Time elapsed for reading is PT12.338S
          */
@@ -101,6 +103,8 @@ class KtLanguageServer implements LanguageServer {
                         .map(POMapper::convert)
                         .collect(Collectors.toList())));
         });
+
+        Collections.sort(filePOs, DiagnosticComparator.instance);
     }
 
     public Optional<List<Diagnostic>> getPOsByFile(File file) {
