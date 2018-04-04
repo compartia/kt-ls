@@ -1,14 +1,13 @@
 'use strict';
 
-import * as net from 'net';
+
 
 import { Trace } from 'vscode-jsonrpc';
-import { workspace, ExtensionContext, window, commands, Uri } from 'vscode';
-import { LanguageClient, LanguageClientOptions, StreamInfo, Position as LSPosition, Location as LSLocation } from 'vscode-languageclient';
+import { workspace, ExtensionContext, window, commands } from 'vscode';
+import { LanguageClient, LanguageClientOptions } from 'vscode-languageclient';
 
-import { connectToRunningServer, prepareExecutable, createServer } from './serverStarter';
+import { connectToRunningServer,  createServer } from './serverStarter';
 import * as requirements from './requirements';
-
 
 
 

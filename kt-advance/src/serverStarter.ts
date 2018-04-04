@@ -1,4 +1,4 @@
-import * as FS from "fs";
+
 import { workspace } from 'vscode';
 
 import * as path from 'path';
@@ -10,7 +10,7 @@ import * as ChildProcess from "child_process";
 import { StreamInfo, Executable, ExecutableOptions } from 'vscode-languageclient';
 import { RequirementsData } from './requirements';
 
-declare var v8debug;
+declare var v8debug:boolean;
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode();
 
 export function prepareExecutable(requirements: RequirementsData): Executable {
@@ -35,7 +35,7 @@ export function createServer(requirements: RequirementsData): Promise<StreamInfo
         PortFinder.getPort({ port: 55282 }, (err, port) => {
             let fatJar = getJarName();
 
-            let args = [
+            let args  = [
                 '-Dktls.slave=true',
                 '-Dclientport=' + port,
                 '-jar', fatJar
@@ -53,8 +53,8 @@ export function createServer(requirements: RequirementsData): Promise<StreamInfo
                 });
 
                 resolve({
-                    reader: c,
-                    writer: c
+                    reader:  <NodeJS.ReadableStream>c,
+                    writer:  <NodeJS.WritableStream>c
                 });
 
             });
@@ -70,19 +70,19 @@ export function createServer(requirements: RequirementsData): Promise<StreamInfo
                 .listen(port, () => {
                     // Start the child java process
                     let options = { cwd: workspace.rootPath };
-                    let process = ChildProcess.spawn(javaExecutablePath, args, options);
+                    let process = ChildProcess.spawn(javaExecutablePath, <string[]>args, options);
 
-                    console.log(args);
-                    console.log(process);
+                    // console.log(args);
+                    // console.log(process);
 
                     process.on("error", e => console.log("KT LS error:", e));
                     process.on("exit", (code, signal) => console.log("KT LS done", code, signal));
 
 
-                    process.stdout.on('data', (d) => {
-                        console.log(d.toString())
-                    })
-                    
+                    // process.stdout.on('data', (d) => {
+                    //     console.log(d.toString())
+                    // })
+
                 });
         });
     });
@@ -101,8 +101,8 @@ export function connectToRunningServer(port: any): Thenable<StreamInfo> {
     });
 
     let result: StreamInfo = {
-        writer: socket,
-        reader: socket
+        writer: <NodeJS.WritableStream>socket,
+        reader: <NodeJS.ReadableStream>socket
     };
 
     socket.on('end', () => {
@@ -110,7 +110,7 @@ export function connectToRunningServer(port: any): Thenable<StreamInfo> {
     });
 
 
-    return Promise.resolve(result);
+    return Promise.resolve(<StreamInfo>result);
 }
 
 
@@ -132,7 +132,7 @@ function getJarName() {
 }
 
 
-function prepareParams(requirements: RequirementsData): string[] {
+function prepareParams(requirements: RequirementsData): string[] | undefined {
     let params: string[] = [];
     if (DEBUG) {
         params.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044,quiet=y');
@@ -165,7 +165,7 @@ function prepareParams(requirements: RequirementsData): string[] {
         params.push('-jar');
         params.push(jarname);
     } else {
-        return null;
+        return undefined;
     }
 
     console.log(params);
@@ -176,7 +176,7 @@ function prepareParams(requirements: RequirementsData): string[] {
 function startedInDebugMode(): boolean {
     let args = (process as any).execArgv;
     if (args) {
-        return args.some((arg) => /^--debug=?/.test(arg) || /^--debug-brk=?/.test(arg) || /^--inspect-brk=?/.test(arg));
+        return args.some((arg: string) => /^--debug=?/.test(arg) || /^--debug-brk=?/.test(arg) || /^--inspect-brk=?/.test(arg));
     }
     return false;
 }
