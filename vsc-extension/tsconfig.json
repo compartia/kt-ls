@@ -8,7 +8,7 @@
 		"module": "commonjs",
                
 		"rootDir": ".",
-		"outDir": "out",
+		"outDir": "./out",
         
         "target": "es6",
 		// "lib": [
@@ -18,12 +18,7 @@
 		"sourceMap": true
 	},
     
-    "files": [
-        "src/extension.ts",
-        "src/requirements.ts",
-        "src/serverStarter.ts"
-    ],
-    
+  
     "exclude": [
         "node_modules",
         "../node_modules"

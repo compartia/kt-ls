@@ -1,5 +1,6 @@
 
-import { workspace } from 'vscode';
+import { workspace, ExtensionContext } from 'vscode';
+
 
 import * as path from 'path';
 import * as net from 'net';
@@ -10,37 +11,26 @@ import * as ChildProcess from "child_process";
 import { StreamInfo, Executable, ExecutableOptions } from 'vscode-languageclient';
 import { RequirementsData } from './requirements';
 
-declare var v8debug:boolean;
+declare var v8debug: boolean;
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode();
 
-export function prepareExecutable(requirements: RequirementsData): Executable {
-    let executable: Executable = Object.create(null);
-    let options: ExecutableOptions = Object.create(null);
-    options.env = process.env;
-    options.stdio = 'pipe';
-    executable.options = options;
-    executable.command = path.resolve(requirements.java_home + '/bin/java');
-    executable.args = prepareParams(requirements);
-
-    console.log(executable);
-    return executable;
-}
 
 
-export function createServer(requirements: RequirementsData): Promise<StreamInfo> {
+
+export function createServer(requirements: RequirementsData, ctx: ExtensionContext): Promise<StreamInfo> {
 
     const javaExecutablePath = path.resolve(requirements.java_home + '/bin/java');
 
     return new Promise((resolve, reject) => {
         PortFinder.getPort({ port: 55282 }, (err, port) => {
-            let fatJar = getJarName();
+            let fatJar = getJarName(ctx);
 
-            let args  = [
+            let args = [
                 '-Dktls.slave=true',
                 '-Dclientport=' + port,
                 '-jar', fatJar
                 // ,
-                // '-Xverify:none' // helps VisualVM avoid 'error 62'
+                // '-Xverify:none' // helps VisualVM avoid 'error 62' 
             ];
 
             console.log('..about to call net.createServer with port ' + port);
@@ -53,8 +43,8 @@ export function createServer(requirements: RequirementsData): Promise<StreamInfo
                 });
 
                 resolve({
-                    reader:  <NodeJS.ReadableStream>c,
-                    writer:  <NodeJS.WritableStream>c
+                    reader: <NodeJS.ReadableStream>c,
+                    writer: <NodeJS.WritableStream>c
                 });
 
             });
@@ -72,8 +62,8 @@ export function createServer(requirements: RequirementsData): Promise<StreamInfo
                     let options = { cwd: workspace.rootPath };
                     let process = ChildProcess.spawn(javaExecutablePath, <string[]>args, options);
 
-                    // console.log(args);
-                    // console.log(process);
+                    console.log(args);
+                    console.log(process);
 
                     process.on("error", e => console.log("KT LS error:", e));
                     process.on("exit", (code, signal) => console.log("KT LS done", code, signal));
@@ -114,63 +104,14 @@ export function connectToRunningServer(port: any): Thenable<StreamInfo> {
 }
 
 
-function getJarName() {
+
+function getJarName(context: ExtensionContext) {
     console.log("__dirname=" + __dirname);
-    let server_home: string = path.resolve(__dirname, '../../');
-    console.log("server_home=" + server_home);
-
-    let launchersFound: Array<string> = glob.sync('**/kt-ls*.jar', { cwd: server_home });
-    if (launchersFound.length) {
-        const jarname = path.resolve(server_home, launchersFound[0]);
-        console.log("jarname=" + jarname);
-        return jarname;
-    } else {
-        return null;
-    }
-
-
+    let jarname = path.resolve(context.extensionPath, "out", "kt-ls.jar");
+    return jarname;
 }
 
 
-function prepareParams(requirements: RequirementsData): string[] | undefined {
-    let params: string[] = [];
-    if (DEBUG) {
-        params.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044,quiet=y');
-        // suspend=y is the default. Use this form if you need to debug the server startup code:
-        //  params.push('-agentlib:jdwp=transport=dt_socket,server=y,address=1044');
-    }
-    if (requirements.java_version > 8) {
-        params.push('--add-modules=ALL-SYSTEM');
-        params.push('--add-opens');
-        params.push('java.base/java.util=ALL-UNNAMED');
-        params.push('--add-opens');
-        params.push('java.base/java.lang=ALL-UNNAMED');
-    }
-
-    // if (DEBUG) {
-    //     params.push('-Dlog.protocol=true');
-    //     params.push('-Dlog.level=ALL');
-    // }
-
-
-    params.push('-Dlog.protocol=true');
-    params.push('-Dlog.level=ALL');
-
-
-    params.push('-Dktls.port=8888');//XXX: find free
-
-
-    const jarname = getJarName();
-    if (jarname) {
-        params.push('-jar');
-        params.push(jarname);
-    } else {
-        return undefined;
-    }
-
-    console.log(params);
-    return params;
-}
 
 
 function startedInDebugMode(): boolean {

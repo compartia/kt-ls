@@ -34,7 +34,7 @@ export function activate(context: ExtensionContext) {
 
             let port = process.env['KT_LS_SERVER_PORT'];
             if (!port) {
-                serverOptions = () => {return createServer(requirements);} ;//prepareExecutable(requirements);
+                serverOptions = () => {return createServer(requirements, context);} ;//prepareExecutable(requirements);
             } else {
                 // used during development
                 serverOptions = connectToRunningServer.bind(null, port);

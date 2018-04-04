@@ -10,7 +10,7 @@
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}" ],
 			"stopOnEntry": false,
 			"sourceMaps": true,
-			"outDir": "${workspaceRoot}/out/lib",
+			"outDir": "${workspaceRoot}/vsc-extension/out",
 			"preLaunchTask": "npm"
 		},
 		{
@@ -21,7 +21,7 @@
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}", "--extensionTestsPath=${workspaceRoot}/out/test" ],
 			"stopOnEntry": false,
 			"sourceMaps": true,
-			"outDir": "${workspaceRoot}/out/test",
+			"outDir": "${workspaceRoot}/vsc-extension/out",
 			"preLaunchTask": "npm"
 		}
 	]
