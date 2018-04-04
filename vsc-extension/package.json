@@ -13,8 +13,23 @@
     "activationEvents": [
         "onLanguage:c"
     ],
-    "main": "./out/extension",
-    "contributes": {},
+    "main": "./out/src/extension",
+    "files": [
+        "./out/kt-ls.jar"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "c",
+                "extensions": [
+                    ".c"
+                ],
+                "aliases": [
+                    "c"
+                ]
+            }
+        ]
+    },
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
@@ -32,9 +47,10 @@
     },
     "devDependencies": {
         "typescript": "^2.6.1",
-        "vscode": "^1.1.6",
+        "@types/node": "^6.0.40",
+        "@types/glob": "5.0.30",
+        "@types/mocha": "^2.2.42",
         "tslint": "^5.8.0",
-        "@types/node": "^7.0.43",
-        "@types/mocha": "^2.2.42"
+        "vscode": "^1.1.6"
     }
 }

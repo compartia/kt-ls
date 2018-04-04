@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		// "noUnusedLocals": true,
+		// "noUnusedParameters": true,
+		// "noImplicitAny": true,
+		"noImplicitReturns": true,		
+
+		"module": "commonjs",
+               
+		"rootDir": ".",
+		"outDir": "./out",
+        
+        "target": "es6",
+		// "lib": [
+        //     "es6"
+        // ],
+
+		"sourceMap": true
+	},
+    
+  
+    "exclude": [
+        "node_modules",
+        "../node_modules"
+    ]
+}
+

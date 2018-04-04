@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.lsp4j.CodeActionParams;
@@ -199,7 +200,7 @@ class KtTextDocumentService implements TextDocumentService {
     public void didOpen(DidOpenTextDocumentParams params) {
         final TextDocumentItem document = params.getTextDocument();
         final URI uri = URI.create(document.getUri());
-
+        LOG.log(Level.INFO, "didOpen " + uri);
         //XXX: we dont need it?
         activeDocuments.put(uri, new VersionedContent(document.getText(), document.getVersion()));
 
