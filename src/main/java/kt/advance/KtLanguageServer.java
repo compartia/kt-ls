@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -137,11 +136,18 @@ class KtLanguageServer implements LanguageServer {
     @Override
     public void initialized(InitializedParams params) {
         LOG.info("INITIALIZED");
+        try {
 
-        final Set<URI> collect = poByFileMap
-                .keySet().stream().map(file -> file.toURI()).collect(Collectors.toSet());
+            this.runXmlScanner(workspaceRoot);
 
-        textDocuments.doLint(collect);
+        } catch (final JAXBException e) {
+            e.printStackTrace();
+            LOG.log(Level.SEVERE, "error", e);
+        }
+
+        final Set<File> set = Collections.unmodifiableSet(poByFileMap.keySet());
+
+        textDocuments.reportDiagnosticsByFile(set);
 
     }
 
@@ -156,6 +162,12 @@ class KtLanguageServer implements LanguageServer {
             final ServerCapabilities c = new ServerCapabilities();
 
             c.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+            //            final WorkspaceServerCapabilities workspaceCapabilities = new WorkspaceServerCapabilities();
+            //            final WorkspaceFoldersOptions workspaceFoldersCapabilities = new WorkspaceFoldersOptions();
+            //            workspaceFoldersCapabilities.setSupported(true);
+            //            workspaceFoldersCapabilities.setChangeNotifications(true);
+            //            workspaceCapabilities.setWorkspaceFolders(workspaceFoldersCapabilities);
+            //            c.setWorkspace(workspaceCapabilities);
 
             //        c.setDefinitionProvider(true);
             //        c.setCompletionProvider(new CompletionOptions(true, ImmutableList.of(".")));
@@ -170,11 +182,7 @@ class KtLanguageServer implements LanguageServer {
 
             result.setCapabilities(c);
 
-            this.runXmlScanner(workspaceRoot);
-
             return CompletableFuture.completedFuture(result);
-        } catch (final JAXBException e) {
-            throw new RuntimeException(e);
         } catch (final MalformedURLException e) {
             throw new RuntimeException(e);
         } catch (final URISyntaxException e) {
