@@ -61,7 +61,7 @@ class KtWorkspaceService implements WorkspaceService {
 
     @Override
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
-        textDocuments.doLint(textDocuments.openFiles());
+        textDocuments.reportDiagnostics(textDocuments.openFiles());
     }
 
     private static final Logger LOG = Logger.getLogger("main");

@@ -1,6 +1,7 @@
 package kt.advance;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -51,7 +52,6 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 
 class KtTextDocumentService implements TextDocumentService {
@@ -91,26 +91,38 @@ class KtTextDocumentService implements TextDocumentService {
 
     }
 
-    void doLint(Collection<URI> paths) {
-        LOG.info("Lint " + Joiner.on(", ").join(paths));
+    public void reportDiagnosticsByFile(Collection<File> files) {
+        files.forEach(file -> reportDiagnostics(file));
+    }
 
-        paths.forEach(uri -> {
-            server.getPOsByFile(UNCPathTool.uri2file(uri))
+    private void reportDiagnostics(File file) {
+        server.getPOsByFile(file)
+                .ifPresent(list -> {
 
-                    .ifPresent(list -> {
+                    Collections.sort(list, DiagnosticComparator.instance);
 
-                        Collections.sort(list, DiagnosticComparator.instance);
+                    final PublishDiagnosticsParams eee = new PublishDiagnosticsParams(file.toURI().toString(), list);
 
-                        final PublishDiagnosticsParams eee = new PublishDiagnosticsParams(uri.toString(), list);
-                        client.join().publishDiagnostics(eee);
-                        LOG.info("Published "
-                                + eee.getDiagnostics().size()
-                                + " errors from "
-                                + uri);
+                    if (list.size() > 2000) {
+                        try {
+                            Thread.sleep(200);
+                        } catch (final Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
 
-                    });
+                    client.join().publishDiagnostics(eee);
+                    LOG.info("Published "
+                            + eee.getDiagnostics().size()
+                            + " errors from "
+                            + file);
 
-        });
+                });
+    }
+
+    public void reportDiagnostics(Collection<URI> paths) {
+        //        LOG.info("Lint " + Joiner.on(", ").join(paths));
+        paths.forEach(uri -> reportDiagnostics(UNCPathTool.uri2file(uri)));
 
     }
 
@@ -203,7 +215,7 @@ class KtTextDocumentService implements TextDocumentService {
         //XXX: we dont need it?
         activeDocuments.put(uri, new VersionedContent(document.getText(), document.getVersion()));
 
-        doLint(Collections.singleton(uri));
+        //        reportDiagnostics(Collections.singleton(uri));
     }
 
     @Override
@@ -286,7 +298,7 @@ class KtTextDocumentService implements TextDocumentService {
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
         // Re-lint all active documents
-        doLint(openFiles());
+        reportDiagnostics(openFiles());
     }
 
     private static final Logger LOG = Logger.getLogger("main");
