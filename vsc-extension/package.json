@@ -2,7 +2,7 @@
     "name": "kt-advance",
     "displayName": "kt-advance",
     "description": "KT Advance",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "publisher": "compartia",
     "engines": {
         "vscode": "^1.21.0"
