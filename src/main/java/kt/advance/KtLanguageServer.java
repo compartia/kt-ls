@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Handler;
@@ -27,6 +29,7 @@ import javax.xml.bind.JAXBException;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
+import org.eclipse.lsp4j.InitializedParams;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
@@ -128,6 +131,17 @@ class KtLanguageServer implements LanguageServer {
             //scan all
             readXmls(cAnalysis.getApps());
         }
+
+    }
+
+    @Override
+    public void initialized(InitializedParams params) {
+        LOG.info("INITIALIZED");
+
+        final Set<URI> collect = poByFileMap
+                .keySet().stream().map(file -> file.toURI()).collect(Collectors.toSet());
+
+        textDocuments.doLint(collect);
 
     }
 

@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -282,10 +281,6 @@ class KtTextDocumentService implements TextDocumentService {
         // Remove from source cache
         activeDocuments.remove(uri);
 
-        // Clear diagnostics
-        client.join()
-                .publishDiagnostics(
-                    new PublishDiagnosticsParams(uri.toString(), new ArrayList<>()));
     }
 
     @Override
