@@ -1,0 +1,17 @@
+matrix:
+  include:
+    - language: java
+      script:
+      - mvn package 
+
+  include:
+    - language: node_js
+      node_js: '9'
+      before_script:
+      - npm install -g tsc
+      - npm install -g vsce
+      - cd vsc-extension
+      - npm install
+      script:
+      - vsce package -o build.vsix
+
