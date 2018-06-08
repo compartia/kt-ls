@@ -6,6 +6,6 @@ language: java
   - mvn package 
   - cd vsc-extension
   - npm install
-  script:
+  script: 
   - vsce package -o build.vsix
 
