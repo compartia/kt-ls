@@ -14,77 +14,76 @@ import com.kt.advance.api.SPO;
 
 public class POMapper {
 
-	private static Diagnostic convertImpl(PO po) {
+    private static Diagnostic convertImpl(PO po) {
 
- 
-		final Diagnostic diagnostic = new Diagnostic();
-		final DiagnosticSeverity severity = severity(po);
+        final Diagnostic diagnostic = new Diagnostic();
+        final DiagnosticSeverity severity = severity(po);
 
-		diagnostic.setSeverity(severity);
-		 
-		diagnostic.setCode(po.getPredicate().type.label);
-		diagnostic.setMessage(description(po));
-		diagnostic.setSource(po.getLevel() == POLevel.PRIMARY ? "KT Advance" : "KT Advance [secondary]");
+        diagnostic.setSeverity(severity);
 
-		return diagnostic;
+        diagnostic.setCode(po.getPredicate().type.label);
+        diagnostic.setMessage(description(po));
+        diagnostic.setSource(po.getLevel() == POLevel.PRIMARY ? "KT Advance" : "KT Advance [secondary]");
 
-	}
+        return diagnostic;
 
-	public static Diagnostic convert(SPO po) {
-		final Range range = position(po.getSite().getLocation());
-		Diagnostic diagnostic = convertImpl(po);
-		diagnostic.setRange(range);
-		return diagnostic;
-	}
+    }
 
-	public static Diagnostic convert(PPO po) {
-		final Range range = position(po.getLocation());
-		Diagnostic diagnostic = convertImpl(po);
-		diagnostic.setRange(range);
-		return diagnostic;
-	}
+    public static Diagnostic convert(SPO po) {
+        final Range range = position(po.getSite().getLocation());
+        Diagnostic diagnostic = convertImpl(po);
+        diagnostic.setRange(range);
+        return diagnostic;
+    }
 
-	private static DiagnosticSeverity severity(PO po) {
-		switch (po.getStatus()) {
-		case violation:
-			return DiagnosticSeverity.Error;
-		case dead:
-			return DiagnosticSeverity.Warning;
-		case discharged:
-			return DiagnosticSeverity.Information;
-		default:
-			return DiagnosticSeverity.Hint;
-		}
-	}
+    public static Diagnostic convert(PPO po) {
+        final Range range = position(po.getLocation());
+        Diagnostic diagnostic = convertImpl(po);
+        diagnostic.setRange(range);
+        return diagnostic;
+    }
 
-	static String description(PO po) {
-		final StringBuffer sb = new StringBuffer();
+    private static DiagnosticSeverity severity(PO po) {
+        switch (po.getStatus()) {
+        case violation:
+            return DiagnosticSeverity.Error;
+        case dead:
+            return DiagnosticSeverity.Warning;
+        case discharged:
+            return DiagnosticSeverity.Information;
+        default:
+            return DiagnosticSeverity.Hint;
+        }
+    }
 
-		sb.append("#").append(po.getId()).append("\t");
-		sb.append("<").append(po.getStatus().label).append(">\t ");
-		sb.append(po.getPredicate().type.label).append("; \n");
+    static String description(PO po) {
+        final StringBuffer sb = new StringBuffer();
 
-		// sb.append(po.getLevel() == POLevel.SECONDARY ? "Secondary; " : "");
-		if (null != po.getExplaination()) {
-			sb.append(po.getExplaination());
-		}
-		sb.append("\n").append(po.getPredicate().express());
+        sb.append("#").append(po.getId()).append("\t");
+        sb.append("<").append(po.getStatus().label).append(">\t ");
+        sb.append(po.getPredicate().type.label).append("; \n");
 
-		if (po.getDeps().level != Definitions.DepsLevel.s /* self */
-				&& po.getDeps().level != Definitions.DepsLevel.i /* unknown */) {
-			sb.append("\n").append(po.getDeps().level.toString());
-		}
+        // sb.append(po.getLevel() == POLevel.SECONDARY ? "Secondary; " : "");
+        if (null != po.getExplaination()) {
+            sb.append(po.getExplaination());
+        }
+        sb.append("\n").append(po.getPredicate().express());
 
-		return sb.toString();
-	}
+        if (po.getDeps().level != Definitions.DepsLevel.s /* self */
+                && po.getDeps().level != Definitions.DepsLevel.i /* unknown */) {
+            sb.append("\n").append(po.getDeps().level.toString());
+        }
 
-	static Range position(CLocation loc) {
+        return sb.toString();
+    }
 
-		int lineNumber = loc.getLine();
+    static Range position(CLocation loc) {
 
-		if (lineNumber > 0) {
-			lineNumber = lineNumber - 1;
-		}
-		return new Range(new Position(lineNumber, 0), new Position(lineNumber, Integer.MAX_VALUE));
-	}
+        int lineNumber = loc.getLine();
+
+        if (lineNumber > 0) {
+            lineNumber = lineNumber - 1;
+        }
+        return new Range(new Position(lineNumber, 0), new Position(lineNumber, Integer.MAX_VALUE));
+    }
 }
