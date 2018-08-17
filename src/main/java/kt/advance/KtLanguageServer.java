@@ -39,6 +39,8 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import com.kt.advance.ErrorsBundle;
+import com.kt.advance.ProgressTracker;
 import com.kt.advance.api.CAnalysisImpl;
 import com.kt.advance.api.CApplication;
 import com.kt.advance.api.CFile;
@@ -71,7 +73,7 @@ class KtLanguageServer implements LanguageServer {
         apps.parallelStream()
                 .forEach(app -> {
                     LOG.log(Level.INFO, "reading " + app.getBaseDir() + "\t in \t" + Thread.currentThread().getName());
-                    app.read();
+                    app.read(new ProgressTracker());
                     app.getCfiles().forEach(
                         f -> mapFilePpos(f, poByFileMap));
 
@@ -118,18 +120,10 @@ class KtLanguageServer implements LanguageServer {
         LOG.log(Level.INFO, "scanning " + workspaceRoot);
 
         final FsAbstraction fs = new FsAbstractionImpl(workspaceRoot);
-        cAnalysis = new CAnalysisImpl(fs);
+        cAnalysis = new CAnalysisImpl(fs, new ErrorsBundle());
         @SuppressWarnings("unused")
         final Map<File, CApplication> apps = cAnalysis.scanForCApps();
-
-        final CApplication appByBaseDir = cAnalysis.getAppByBaseDir(workspaceRoot);
-        if (appByBaseDir != null) {
-            //scan single dir
-            readXmls(Collections.singleton(appByBaseDir));
-        } else {
-            //scan all
-            readXmls(cAnalysis.getApps());
-        }
+        
 
     }
 
