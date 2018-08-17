@@ -2,7 +2,7 @@
     "name": "kt-advance",
     "displayName": "kt-advance",
     "description": "KT Advance",
-    "version": "0.1.0",
+    "version": "2.7.2",
     "publisher": "compartia",
     "engines": {
         "vscode": "^1.21.0"
@@ -12,7 +12,7 @@
         "url": "https://github.com/compartia/kt-ls.git"
     },
     "categories": [
-        "Languages"
+        "Programming Languages"
     ],
     "activationEvents": [
         "onLanguage:c"
